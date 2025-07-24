@@ -60,14 +60,14 @@ function renderPage(index) {
                 </table>
             </div>
             <div style="display:flex; margin-top:-40px">
-                <div class="multiple-choice" style="padding-left:20%">
+                <div class="multiple-choice" style="padding-left:10%">
                     <p>Please select the behavior type:</p>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <label>Clay-like (0)</label>
                         <input type="range" id="slider_${question.questionNumber}" min="0" max="100" step="1" value="${savedSliderValue}" ${savedBehavior === "data not usable" ? "disabled" : ""}>
                         <label>Sand-like (100)</label>
                     </div>
-                    <p>Current Value: 
+                    <p>Current Value (%): 
                         <input type="number" id="slider_input_${question.questionNumber}" value="${savedSliderValue}" min="0" max="100" style="width: 60px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
                     </p>
                     <label>
@@ -75,11 +75,15 @@ function renderPage(index) {
                         Data is not usable
                     </label>
                     <div style="margin-top:10px">
-                        <label><b>Standard Deviation:</b></label>
+                        <label><b>Standard Deviation (%):</b></label>
                         <input type="number" id="stddev_${question.questionNumber}" value="${savedStdDev}" step="0.01" style="width:100px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
                     </div>
+                        <div class="navigation-buttons" style="margin-top:10px; margin-bottom:10px">
+                            <button class="plot-button" onclick="plotBeta(${question.questionNumber})">Plot Beta Distribution</button>
+                        </div>
                 </div>
-                <div class="comments-section"style="padding-left:10%; width:400px">
+                <div id="plot_${question.questionNumber}" style="width:500px;height:300px;margin:30px;"></div>
+                <div class="comments-section" style="margin-right: auto; width: 400px;">
                     <h3>Comments</h3>
                     <textarea id="comments_${question.questionNumber}" rows="5" placeholder="Enter your comments here...">${savedComments}</textarea>
                 </div>
@@ -114,6 +118,75 @@ function renderPage(index) {
         console.error(`Invalid page index: ${index}`);
     }
 }
+
+function plotBeta(questionNumber) {
+    const meanInput = document.getElementById(`slider_${questionNumber}`);
+    const stddevInput = document.getElementById(`stddev_${questionNumber}`);
+    const plotDiv = document.getElementById(`plot_${questionNumber}`);
+
+    if (!meanInput || !stddevInput || !plotDiv) return;
+
+    const mean = parseFloat(meanInput.value) / 100;
+    const stddev = parseFloat(stddevInput.value)/100;
+
+    if (isNaN(mean) || isNaN(stddev) || stddev <= 0 || mean <= 0 || mean >= 1) {
+        alert("Please provide a valid mean (0–100) and a positive standard deviation.");
+        return;
+    }
+
+    const variance = stddev ** 2;
+
+    // Compute alpha and beta parameters
+    const common = (mean * (1 - mean) / variance - 1);
+    const alpha = mean * common;
+    const beta = (1 - mean) * common;
+
+    if (alpha <= 1 || beta <= 1) {
+        alert(`Invalid beta parameters.\nAlpha: ${alpha.toFixed(3)}, Beta: ${beta.toFixed(3)}\nPlease adjust the mean or standard deviation.`);
+        return;
+    }
+
+    const x = [];
+    const y = [];
+
+    for (let i = 0; i <= 1000; i++) {
+        const xi = i / 1000;
+        const yi = jStat.beta.pdf(xi, alpha, beta);
+        x.push(xi * 100);  // convert to percentage for plotting on 0–100 scale
+        y.push(yi);
+    }
+
+    Plotly.newPlot(plotDiv, [
+        {
+            x: x,
+            y: y,
+            mode: 'lines',
+            line: { color: 'black', width: 3 },
+            name: `Beta PDF`,
+        },
+    ], {
+        margin: { t: 10, r: 30 },
+        xaxis: {
+            title: 'Susceptibility (%)',
+            range: [0, 100],
+            tickmode: 'linear',
+            tick0: 0,
+            dtick: 10  // or 5 for finer ticks
+        },
+        yaxis: {
+                title: 'Density',
+                range: [0, Math.max(...y) * 1.1]
+            },
+        legend: {
+            title: {
+                    text: `Mean: ${mean.toFixed(2)} | Std: ${stddev.toFixed(2)}<br>Alpha: ${alpha.toFixed(2)} | Beta: ${beta.toFixed(2)}` },
+            x: -0.2,
+            y: -0.5
+        },
+        showlegend: true
+    });
+}
+
 
 function saveAnswer(questionNumber) {
     const selectedBehavior = document.querySelector(`input[name="behavior_${questionNumber}"]:checked`);
