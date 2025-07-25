@@ -26,8 +26,8 @@ function renderPage(index) {
 
         const savedBehavior = responses[question.questionNumber]?.behavior || "";
         const savedComments = responses[question.questionNumber]?.comments || "";
-        const savedSliderValue = responses[question.questionNumber]?.sliderValue || 50;
-        const savedStdDev = responses[question.questionNumber]?.standardDeviation || "";
+        const savedSliderValue = responses[question.questionNumber]?.sliderValue || 0.5;
+        const savedStdDev = responses[question.questionNumber]?.standardDeviation || 0.1;
 
         const questionDiv = document.createElement('div');
         questionDiv.className = 'page active dynamic-question';
@@ -63,24 +63,23 @@ function renderPage(index) {
                 <div class="multiple-choice" style="padding-left:10%">
                     <p>Please select the behavior type:</p>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <label>Clay-like (0)</label>
-                        <input type="range" id="slider_${question.questionNumber}" min="0" max="100" step="1" value="${savedSliderValue}" ${savedBehavior === "data not usable" ? "disabled" : ""}>
-                        <label>Sand-like (100)</label>
+                        <label>Clay-like (0.03)</label>
+                        <input type="range" id="slider_${question.questionNumber}" min="0.03" max="0.97" step="0.01" value="${savedSliderValue}" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <label>Sand-like (0.97)</label>
                     </div>
-                    <p>Current Value (%): 
-                        <input type="number" id="slider_input_${question.questionNumber}" value="${savedSliderValue}" min="0" max="100" style="width: 60px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                    <p>Current Value: 
+                        <input type="number" id="slider_input_${question.questionNumber}" value="${savedSliderValue}" min="0.03" max="0.97" step="0.01" style="width: 60px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <span id="mean_range_${question.questionNumber}" style="margin-left:10px; font-size: 14px; color: #888;"></span>
                     </p>
                     <label>
                         <input type="checkbox" name="behavior_${question.questionNumber}" value="data not usable" ${savedBehavior === "data not usable" ? "checked" : ""}>
                         Data is not usable
                     </label>
                     <div style="margin-top:10px">
-                        <label><b>Standard Deviation (%):</b></label>
-                        <input type="number" id="stddev_${question.questionNumber}" value="${savedStdDev}" step="0.01" style="width:100px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <label><b>Standard Deviation:</b></label>
+                        <input type="number" id="stddev_${question.questionNumber}" value="${savedStdDev}" min = "0.02" step="0.01" style="width:100px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <span id="max_stddev_${question.questionNumber}" style="margin-left:10px; font-size: 14px; color: #888;"></span>
                     </div>
-                        <div class="navigation-buttons" style="margin-top:10px; margin-bottom:10px">
-                            <button class="plot-button" onclick="plotBeta(${question.questionNumber})">Plot Beta Distribution</button>
-                        </div>
                 </div>
                 <div id="plot_${question.questionNumber}" style="width:500px;height:300px;margin:30px;"></div>
                 <div class="comments-section" style="margin-right: auto; width: 400px;">
@@ -100,8 +99,36 @@ function renderPage(index) {
         const stddevInput = document.getElementById(`stddev_${question.questionNumber}`);
         const radioButton = document.querySelector(`input[name="behavior_${question.questionNumber}"][value="data not usable"]`);
 
+        const maxStdSpan = document.getElementById(`max_stddev_${question.questionNumber}`);
+
+        function updateMaxStddevDisplay() {
+            const mean = parseFloat(slider.value);
+            if (!isNaN(mean) && mean > 0 && mean < 1) {
+                const maxStdev = getMaxStd(mean);
+                maxStdSpan.textContent = `(max: ${maxStdev.toFixed(3)})`;
+            } else {
+                maxStdSpan.textContent = "";
+            }
+        }
+
+        function getMaxStd(mean) {
+            let bestStd = 0;
+            for (let alpha = 1.01; alpha <= 100; alpha += 0.05) {
+                const beta = alpha * (1 - mean) / mean;
+                if (beta <= 1) continue;
+                const variance = (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1));
+                const std = Math.sqrt(variance);
+                if (std > bestStd) bestStd = std;
+            }
+            return bestStd;
+        }
+ 
+
         slider.addEventListener('input', () => (sliderInput.value = slider.value));
         sliderInput.addEventListener('input', () => (slider.value = sliderInput.value));
+        slider.addEventListener('input', updateMaxStddevDisplay);
+        sliderInput.addEventListener('input', updateMaxStddevDisplay);
+        updateMaxStddevDisplay();  // call once on load
 
         radioButton.addEventListener('change', (event) => {
             const isDisabled = event.target.checked;
@@ -109,15 +136,32 @@ function renderPage(index) {
             sliderInput.disabled = isDisabled;
             stddevInput.disabled = isDisabled;
             if (isDisabled) {
-                slider.value = 50;
-                sliderInput.value = 50;
-                stddevInput.value = "";
+                slider.value = 0.5;
+                sliderInput.value = 0.5;
+                stddevInput.value = 0.1;
             }
         });
+
+    slider.addEventListener('input', () => {
+        sliderInput.value = slider.value;
+        plotBeta(question.questionNumber);
+    });
+
+    sliderInput.addEventListener('input', () => {
+        slider.value = sliderInput.value;
+        plotBeta(question.questionNumber);
+    });
+
+    stddevInput.addEventListener('input', () => {
+        plotBeta(question.questionNumber);
+    });
+    plotBeta(question.questionNumber);
     } else {
         console.error(`Invalid page index: ${index}`);
     }
+
 }
+
 
 function plotBeta(questionNumber) {
     const meanInput = document.getElementById(`slider_${questionNumber}`);
@@ -126,11 +170,11 @@ function plotBeta(questionNumber) {
 
     if (!meanInput || !stddevInput || !plotDiv) return;
 
-    const mean = parseFloat(meanInput.value) / 100;
-    const stddev = parseFloat(stddevInput.value)/100;
+    const mean = parseFloat(meanInput.value);
+    const stddev = parseFloat(stddevInput.value);
 
     if (isNaN(mean) || isNaN(stddev) || stddev <= 0 || mean <= 0 || mean >= 1) {
-        alert("Please provide a valid mean (0–100) and a positive standard deviation.");
+        // alert("Please provide a valid mean (0–1) and a positive standard deviation.");
         return;
     }
 
@@ -142,7 +186,19 @@ function plotBeta(questionNumber) {
     const beta = (1 - mean) * common;
 
     if (alpha <= 1 || beta <= 1) {
-        alert(`Invalid beta parameters.\nAlpha: ${alpha.toFixed(3)}, Beta: ${beta.toFixed(3)}\nPlease adjust the mean or standard deviation.`);
+        Plotly.newPlot(plotDiv, [{
+            x: [0.5],
+            y: [0.5],
+            mode: 'text',
+            text: [`Invalid parameters:<br>α = ${alpha.toFixed(2)}, β = ${beta.toFixed(2)}<br>Please adjust mean or std.`],
+            textposition: 'middle center',
+            type: 'scatter'
+        }], {
+            xaxis: { visible: false },
+            yaxis: { visible: false },
+            margin: { t: 10, r: 30 },
+            showlegend: false
+        });
         return;
     }
 
@@ -152,7 +208,7 @@ function plotBeta(questionNumber) {
     for (let i = 0; i <= 1000; i++) {
         const xi = i / 1000;
         const yi = jStat.beta.pdf(xi, alpha, beta);
-        x.push(xi * 100);  // convert to percentage for plotting on 0–100 scale
+        x.push(xi);  // convert to percentage for plotting on 0–100 scale
         y.push(yi);
     }
 
@@ -167,11 +223,11 @@ function plotBeta(questionNumber) {
     ], {
         margin: { t: 10, r: 30 },
         xaxis: {
-            title: 'Susceptibility (%)',
-            range: [0, 100],
+            title: 'Susceptibility',
+            range: [-0.05, 1.05],
             tickmode: 'linear',
             tick0: 0,
-            dtick: 10  // or 5 for finer ticks
+            dtick: 0.1  // or 5 for finer ticks
         },
         yaxis: {
                 title: 'Density',
