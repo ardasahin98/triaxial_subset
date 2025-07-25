@@ -145,6 +145,14 @@ function renderPage(index) {
     stddevInput.addEventListener('input', () => {
         plotBeta(question.questionNumber);
     });
+    stddevInput.addEventListener('input', () => {
+        const mean = parseFloat(slider.value);
+        const maxStd = getMaxStd(mean);
+        const enteredStd = parseFloat(stddevInput.value);
+        if (!isNaN(enteredStd) && enteredStd > maxStd) {
+            stddevInput.value = maxStd.toFixed(3);
+        }
+    });
     plotBeta(question.questionNumber);
     } else {
         console.error(`Invalid page index: ${index}`);
