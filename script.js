@@ -77,7 +77,7 @@ function renderPage(index) {
                     </label>
                     <div style="margin-top:10px">
                         <label><b>Standard Deviation:</b></label>
-                        <input type="number" id="stddev_${question.questionNumber}" value="${savedStdDev}" min = "0.02" step="0.01" style="width:100px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <input type="number" id="stddev_${question.questionNumber}" value="${savedStdDev}" min = "0.01" step="0.01" style="width:100px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
                         <span id="max_stddev_${question.questionNumber}" style="margin-left:10px; font-size: 14px; color: #888;"></span>
                     </div>
                 </div>
