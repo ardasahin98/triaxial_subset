@@ -106,21 +106,16 @@ function renderPage(index) {
             if (!isNaN(mean) && mean > 0 && mean < 1) {
                 const maxStdev = getMaxStd(mean);
                 maxStdSpan.textContent = `(max: ${maxStdev.toFixed(3)})`;
+                stddevInput.max = maxStdev.toFixed(3);
+
+                const currentStd = parseFloat(stddevInput.value);
+                if (!isNaN(currentStd) && currentStd > maxStdev) {
+                    stddevInput.value = maxStdev.toFixed(3);  // auto-correct stddev
+                }
             } else {
                 maxStdSpan.textContent = "";
+                stddevInput.removeAttribute("max");
             }
-        }
-
-        function getMaxStd(mean) {
-            let bestStd = 0;
-            for (let alpha = 1.01; alpha <= 100; alpha += 0.05) {
-                const beta = alpha * (1 - mean) / mean;
-                if (beta <= 1) continue;
-                const variance = (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1));
-                const std = Math.sqrt(variance);
-                if (std > bestStd) bestStd = std;
-            }
-            return bestStd;
         }
  
 
@@ -157,6 +152,18 @@ function renderPage(index) {
 
 }
 
+function getMaxStd(mean) {
+    let bestStd = 0;
+    for (let alpha = 1.01; alpha <= 100; alpha += 0.05) {
+        const beta = alpha * (1 - mean) / mean;
+        if (beta <= 1) continue;
+        const variance = (alpha * beta) / ((alpha + beta) ** 2 * (alpha + beta + 1));
+        const std = Math.sqrt(variance);
+        if (std > bestStd) bestStd = std;
+    }
+    return bestStd;
+}
+
 
 function plotBeta(questionNumber) {
     const meanInput = document.getElementById(`slider_${questionNumber}`);
@@ -166,13 +173,15 @@ function plotBeta(questionNumber) {
     if (!meanInput || !stddevInput || !plotDiv) return;
 
     const mean = parseFloat(meanInput.value);
-    const stddev = parseFloat(stddevInput.value);
+    const userStd = parseFloat(stddevInput.value);
+    const maxStd = getMaxStd(mean);
+    const stddev = Math.min(userStd, maxStd);
 
     if (isNaN(mean) || isNaN(stddev) || stddev <= 0 || mean <= 0 || mean >= 1) {
         // alert("Please provide a valid mean (0–1) and a positive standard deviation.");
         return;
     }
-
+    
     const variance = stddev ** 2;
 
     // Compute alpha and beta parameters
