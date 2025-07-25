@@ -63,12 +63,12 @@ function renderPage(index) {
                 <div class="multiple-choice" style="padding-left:10%">
                     <p>Please select the behavior type:</p>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <label>Clay-like (0.03)</label>
-                        <input type="range" id="slider_${question.questionNumber}" min="0.03" max="0.97" step="0.01" value="${savedSliderValue}" ${savedBehavior === "data not usable" ? "disabled" : ""}>
-                        <label>Sand-like (0.97)</label>
+                        <label>Clay-like (0.01)</label>
+                        <input type="range" id="slider_${question.questionNumber}" min="0.01" max="0.99" step="0.01" value="${savedSliderValue}" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <label>Sand-like (0.99)</label>
                     </div>
                     <p>Current Value: 
-                        <input type="number" id="slider_input_${question.questionNumber}" value="${savedSliderValue}" min="0.03" max="0.97" step="0.01" style="width: 60px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
+                        <input type="number" id="slider_input_${question.questionNumber}" value="${savedSliderValue}" min="0.01" max="0.99" step="0.01" style="width: 60px;" ${savedBehavior === "data not usable" ? "disabled" : ""}>
                         <span id="mean_range_${question.questionNumber}" style="margin-left:10px; font-size: 14px; color: #888;"></span>
                     </p>
                     <label>
