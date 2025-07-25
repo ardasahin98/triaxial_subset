@@ -129,17 +129,12 @@ function renderPage(index) {
         slider.addEventListener('input', updateMaxStddevDisplay);
         sliderInput.addEventListener('input', updateMaxStddevDisplay);
         updateMaxStddevDisplay();  // call once on load
-
+        
         radioButton.addEventListener('change', (event) => {
             const isDisabled = event.target.checked;
             slider.disabled = isDisabled;
             sliderInput.disabled = isDisabled;
             stddevInput.disabled = isDisabled;
-            if (isDisabled) {
-                slider.value = 0.5;
-                sliderInput.value = 0.5;
-                stddevInput.value = 0.1;
-            }
         });
 
     slider.addEventListener('input', () => {
